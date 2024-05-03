@@ -18,7 +18,7 @@
         <set-header name="Authorization" exists-action="override">
             <value>@("type=aad&ver=1.0&sig=" + context.Variables["msi-access-token"])</value>
         </set-header>
-        <set-variable name="Email" value="@((string) context.Request.Url.Query.GetValueOrDefault("email").Replace("%40", "@"))" />
+        <set-variable name="Email" value="@((string) context.Request.Url.Query.GetValueOrDefault("id").Replace("%40", "@"))" />
         <set-header name="x-ms-date" exists-action="override">
             <value>@(context.Variables.GetValueOrDefault<string>("requestDateString"))</value>
         </set-header>
