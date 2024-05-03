@@ -57,6 +57,9 @@
     <outbound>
         <base />
         <cache-store duration="20" />
+        <set-body template="none">@{
+                return context.Response.Body.As<JObject>()["Documents"].ToString();
+            }</set-body>
     </outbound>
     <on-error>
         <base />
