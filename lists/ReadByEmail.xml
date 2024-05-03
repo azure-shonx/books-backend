@@ -1,0 +1,62 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-variable name="requestDateString" value="@(DateTime.UtcNow.ToString("r"))" />
+        <authentication-managed-identity resource="https://books.documents.azure.com" output-token-variable-name="msi-access-token" ignore-error="false" />
+        <set-header name="Authorization" exists-action="override">
+            <value>@("type=aad&ver=1.0&sig=" + context.Variables["msi-access-token"])</value>
+        </set-header>
+        <set-variable name="Email" value="@((string) context.Request.Url.Query.GetValueOrDefault("email").Replace("%40", "@"))" />
+        <set-header name="x-ms-date" exists-action="override">
+            <value>@(context.Variables.GetValueOrDefault<string>("requestDateString"))</value>
+        </set-header>
+        <set-header name="x-ms-version" exists-action="override">
+            <value>2018-12-31</value>
+        </set-header>
+        <set-header name="x-ms-documentdb-isquery" exists-action="override">
+            <value>True</value>
+        </set-header>
+        <set-header name="x-ms-max-item-count" exists-action="skip">
+            <value>1000</value>
+        </set-header>
+        <set-header name="x-ms-documentdb-query-enablecrosspartition" exists-action="skip">
+            <value>True</value>
+        </set-header>
+        <set-header name="Content-Type" exists-action="skip">
+            <value>application/query+json</value>
+        </set-header>
+        <set-body template="none">@{
+                return Newtonsoft.Json.JsonConvert.SerializeObject(
+                    new {
+                        query = "SELECT * FROM lists WHERE lists.owner = '" + context.Variables["Email"] + "'"
+                    }
+                );
+            }</set-body>
+        <set-method>POST</set-method>
+        <rewrite-uri template="dbs/bookclub/colls/lists/docs/" copy-unmatched-params="false" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-body template="none">@{
+                return context.Response.Body.As<JObject>()["Documents"].ToString();
+            }</set-body>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
